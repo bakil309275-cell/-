@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>مكتبة العيسائي القانونية الرقمية</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f1a14" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">📚</div>
+      <div>
+        <div class="title">مكتبة العيسائي القانونية الرقمية</div>
+        <div class="small">نسخة محلية قابلة للتثبيت (PWA) — تعمل بدون إنترنت</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-install" class="icon-btn install-btn">⬇️ تثبيت</button>
+      <button id="btn-admin" class="icon-btn">⚙️ الضبط</button>
+    </div>
+  </header>
+
+  <nav class="icon-strip" aria-label="شريط الفئات">
+    <div class="strip-inner" id="top-icons"></div>
+  </nav>
+
+  <div class="search-row">
+    <input id="search" class="search-input" placeholder="ابحث بالعربية أو English..." />
+    <button id="search-btn" class="search-icon" title="بحث">🔍</button>
+  </div>
+
+  <div class="layout">
+    <aside class="left-panel">
+      <div class="panel-title">الفهرس</div>
+      <div id="public-index-root" class="index-window"></div>
+
+      <div style="margin-top:12px">
+        <div class="panel-title">مراسلة الإدارة</div>
+        <input id="visitor-name" class="input" placeholder="الاسم (اختياري)" />
+        <input id="visitor-files" class="input" type="file" multiple />
+        <textarea id="visitor-message" class="input" placeholder="رسالة..." style="width:100%;height:80px;margin-top:8px"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button id="btn-send-visitor" class="btn primary">إرسال</button>
+          <button id="btn-view-uploads" class="btn neutral">عرض المرسلات</button>
+        </div>
+        <div class="small" style="margin-top:8px">المرسلات محفوظة محلياً. يمكن للمدير تنزيلها أو حذفها.</div>
+      </div>
+    </aside>
+
+    <section class="right-panel">
+      <div class="viewer-head">
+        <div>
+          <div id="item-title" class="viewer-title">اختر عنصرًا للعرض</div>
+          <div id="item-meta" class="small"></div>
+        </div>
+        <div class="row">
+          <button id="btn-download-selected" class="icon-btn">⬇️ تنزيل</button>
+          <button id="btn-print-selected" class="icon-btn">🖨️ طباعة</button>
+          <button id="btn-copy-selected" class="btn neutral">📋 نسخ</button>
+          <button id="btn-share-selected" class="icon-btn">📤 إرسال</button>
+        </div>
+      </div>
+
+      <div id="viewer-content" class="viewer">
+        <div class="small">المحتوى سيظهر هنا عند اختيار عنصر.</div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+        <div class="small">النسخ: <button id="export-json" class="btn neutral">تصدير JSON</button> <button id="import-json" class="btn neutral">استيراد JSON</button></div>
+        <div class="small">ملاحظة: لتفعيل التثبيت قد تحتاج تشغيل عبر خادم محلي (localhost) أو HTTPS.</div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="footer">© 2025 مكتبة العيسائي القانونية الرقمية</footer>
+</div>
+
+<!-- مودال الإدارة -->
+<div id="admin-modal" class="modal"><div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h3>🔒 الضبط والإدارة</h3><button id="admin-close" class="icon-btn">✖</button></div>
+  <div style="display:flex;gap:12px;margin-top:8px">
+    <div style="flex:1">
+      <h4>الأيقونات (شريط الفئات)</h4>
+
+      <div id="admin-stats" class="row" style="justify-content:space-around; background:var(--bg); padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid var(--line);">
+      </div>
+
+      <div id="admin-index-root" class="admin-index"></div>
+      <div style="margin-top:8px" class="row">
+        <button id="admin-add-type" class="btn primary">إضافة أيقونة/نوع</button>
+        <button id="admin-import-json" class="btn neutral">استيراد JSON</button>
+        <button id="admin-export-files" class="btn neutral">تصدير الملفات</button>
+      </div>
+    </div>
+    <div style="width:320px">
+      <h4>الحماية</h4>
+      <div class="row"><button id="btn-set-password" class="btn primary">تعيين/تغيير كلمة المرور</button><button id="btn-reset-password" class="btn neutral">إعادة ضبط كلمة المرور</button></div>
+      <div style="height:12px"></div>
+      <h4>المرسلات</h4>
+      <div class="row"><button id="admin-view-uploads" class="btn neutral">عرض المرسلات</button><button id="admin-clear-uploads" class="btn neutral">حذف الكل</button></div>
+    </div>
+  </div>
+</div></div>
+
+<!-- مودال المرسلات -->
+<div id="uploads-modal" class="modal"><div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h3>📥 المرسلات الواردة</h3><button id="uploads-close" class="icon-btn">✖</button></div>
+  <div id="uploads-list" style="margin-top:8px"></div>
+</div></div>
+
+<div style="border-top: 1px dashed var(--line); margin-top: 20px; padding-top: 15px;">
+    <h4 style="color: var(--accent); margin-bottom: 10px;"><i class="fas fa-user-shield"></i> أدوات الإدارة المتقدمة</h4>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <button id="btn-show-trash-advanced" class="btn neutral" style="border: 1px solid #ffb86c; color: #ffb86c;">
+            <i class="fas fa-trash-alt"></i> السلة (تحديد متعدد)
+        </button>
+        <button id="btn-cloud-sync" class="btn primary" style="background: #2d5a88;">
+            <i class="fas fa-cloud-upload-alt"></i> مزامنة سحابية
+        </button>
+        <button id="btn-open-editor" class="btn primary" style="background: #2a7d50; grid-column: span 2; margin-top: 5px;">
+            <i class="fas fa-file-signature"></i> فتح محرر العرائض والمذكرات
+        </button>
+    </div>
+</div>
+
+<div id="editor-modal" class="modal">
+    <div class="card" style="max-width: 95%; width: 1000px; height: 90vh; display: flex; flex-direction: column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3 style="color:var(--accent)"><i class="fas fa-pen-fancy"></i> محرر العرائض القانونية</h3>
+            <button onclick="document.getElementById('editor-modal').style.display='none'" class="icon-btn">✖</button>
+        </div>
+        
+        <div class="editor-toolbar" style="background:#f8f9fa; padding:10px; border-radius:8px; display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; border:1px solid #ddd;">
+            <button onclick="execCmd('bold')" class="btn neutral" style="padding:5px 10px; color:#333"><b>B</b></button>
+            <button onclick="execCmd('italic')" class="btn neutral" style="padding:5px 10px; color:#333"><i>I</i></button>
+            <button onclick="execCmd('justifyRight')" class="btn neutral" style="padding:5px 10px; color:#333"><i class="fas fa-align-right"></i></button>
+            <button onclick="execCmd('justifyCenter')" class="btn neutral" style="padding:5px 10px; color:#333"><i class="fas fa-align-center"></i></button>
+            <button onclick="saveEditorContent()" class="btn primary" style="background:#2a7d50; margin-right:auto;">حفظ في المكتبة</button>
+        </div>
+
+        <div id="legal-editor" contenteditable="true" style="flex-grow:1; background:white; color:#1a1a1a; padding:50px; border:1px solid #ccc; overflow-y:auto; line-height:2; font-family:'Traditional Arabic', 'Times New Roman', serif; font-size:20px; box-shadow: inset 0 0 15px rgba(0,0,0,0.05); outline:none;">
+            </div>
+    </div>
+</div>
+
+<div id="trash-modal-advanced" class="modal">
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+            <h3><i class="fas fa-recycle"></i> إدارة المحذوفات</h3>
+            <button onclick="document.getElementById('trash-modal-advanced').style.display='none'" class="icon-btn">✖</button>
+        </div>
+        <div id="trash-bulk-actions" style="margin: 10px 0; display:none; gap:10px;">
+            <button onclick="bulkTrashAction('restore')" class="btn primary" style="font-size:12px">استعادة المحدد</button>
+            <button onclick="bulkTrashAction('delete')" class="btn neutral" style="font-size:12px; color:#ff4d4d">حذف نهائي للمحدد</button>
+        </div>
+        <div id="trash-list-advanced" style="max-height:400px; overflow-y:auto; margin-top:10px;"></div>
+    </div>
+</div>
+
+<!-- قائمة سياقية عامة -->
+<div id="context-menu" class="menu" aria-hidden="true"></div>
+
+<script src="js/app.js" defer></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(()=>console.warn('SW registration failed'));
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "مكتبة العيسائي القانونية",
+  "short_name": "العيسائي",
+  "lang": "ar",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0d0b",
+  "theme_color": "#1f1a14",
+  "icons": [
+    { "src": "icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
