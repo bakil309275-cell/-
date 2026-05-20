@@ -7,9 +7,6 @@
 const META_KEY = 'maktabat_alaysaei_meta_vfinal';
 const ADMIN_KEY = 'maktabat_alaysaei_admin_vfinal';
 const DB_NAME = 'maktabat_alaysaei_db_vfinal';
-const TRASH_KEY = 'maktabat_alaysaei_trash_vfinal'; // أضيف
-window.trash = JSON.parse(localStorage.getItem(TRASH_KEY) || '[]'); // أضيف
-function saveTrash() { localStorage.setItem(TRASH_KEY, JSON.stringify(window.trash)); } // أضيف
 const DB_VER = 1;
 const FILE_STORE = 'files';
 const UPLOAD_STORE = 'uploads';
@@ -123,6 +120,7 @@ function renderPublicIndex(){
 
     if(q && !catMatch && matchedExamples.length === 0) return;
 
+    // حالة القسم: يفتح تلقائياً إذا كان هناك بحث نشط، وإلا يظل مطوياً
     const isSearchActive = q.length > 0;
 
     const catEl = document.createElement('div'); 
@@ -168,6 +166,7 @@ function renderPublicIndex(){
     body.style.paddingRight = '10px';
     body.style.display = !isSearchActive ? 'none' : 'block';
 
+    // وظيفة الطي عند الضغط على الصف
     row.onclick = () => {
       const isHidden = body.style.display === 'none';
       body.style.display = isHidden ? 'block' : 'none';
@@ -202,7 +201,7 @@ function openCategoryMenu(e,t,cat){
   const rect = e.target.getBoundingClientRect();
   const items = [
     { label:'إعادة تسمية القسم', action:()=>{ const v = prompt('الاسم الجديد:', cat.title); if(v){ cat.title=v; saveMeta(); renderPublicIndex(); } } },
-    { label:'إضافة نموذج جديد', action:()=>{ const title = prompt('عنوان النموذج:'); if(!title) return; const text = prompt('نص النموذج:')||''; cat.examples.push({title,text,files:[]}); saveMeta(); renderPublicIndex(); } } },
+    { label:'إضافة نموذج جديد', action:()=>{ const title = prompt('عنوان النموذج:'); if(!title) return; const text = prompt('نص النموذج:')||''; cat.examples.push({title,text,files:[]}); saveMeta(); renderPublicIndex(); } },
     { label:'حذف القسم', action:()=>{ if(confirm('حذف القسم وكافة النماذج؟')){ const idx = t.categories.indexOf(cat); if(idx>=0){ t.categories.splice(idx,1); saveMeta(); renderPublicIndex(); } } } }
   ];
   showMenuAt(rect.right-10, rect.bottom+6, items);
@@ -278,9 +277,6 @@ document.getElementById('btn-send-visitor').addEventListener('click', async ()=>
   alert('✅ تم الإرسال محلياً'); document.getElementById('visitor-name').value=''; document.getElementById('visitor-message').value=''; document.getElementById('visitor-files').value='';
 });
 
-// مستمع لزر عرض المرسلات للزائر
-document.getElementById('btn-view-uploads').addEventListener('click', async ()=>{ await showUploadsModal(); });
-
 /* Admin: view uploads */
 document.getElementById('admin-view-uploads').addEventListener('click', async ()=>{ document.getElementById('btn-admin').click(); await showUploadsModal(); });
 async function showUploadsModal(){
@@ -305,7 +301,6 @@ function openAdmin(){
 function setAdminPassword(){ const p1 = prompt('تعيين كلمة مرور المسؤول:'); if(!p1) return; const p2 = prompt('تأكيد كلمة المرور:'); if(p1 !== p2){ alert('غير متطابقة'); return; } localStorage.setItem(ADMIN_KEY, p1); alert('✅ تم حفظ كلمة المرور'); adminModal.style.display='flex'; renderAdminIndex(); }
 document.getElementById('admin-close').addEventListener('click', ()=> adminModal.style.display='none');
 document.getElementById('btn-reset-password').addEventListener('click', ()=>{ if(!confirm('إعادة ضبط كلمة المرور (سيُطلب إنشاؤها من جديد)؟')) return; localStorage.removeItem(ADMIN_KEY); alert('✅ تم حذف كلمة المرور'); });
-document.getElementById('btn-set-password').addEventListener('click', ()=>{ const p1 = prompt('كلمة المرور الجديدة:'); if(!p1) return; const p2 = prompt('تأكيد كلمة المرور:'); if(p1 !== p2){ alert('غير متطابقة'); return; } localStorage.setItem(ADMIN_KEY, p1); alert('✅ تم تغيير كلمة المرور'); });
 
 // Render admin index (full control)
 function renderAdminIndex(){
@@ -393,8 +388,6 @@ function adminAddExample(typeId,ci){ const title = prompt('عنوان النمو
 /* export/import JSON */
 document.getElementById('export-json').addEventListener('click', ()=>{ const blob = new Blob([JSON.stringify(meta,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maktabat_meta_'+Date.now()+'.json'; a.click(); a.remove(); });
 document.getElementById('admin-import-json').addEventListener('click', ()=>{ const inp = document.createElement('input'); inp.type='file'; inp.accept='application/json'; inp.onchange = (e)=>{ const f = e.target.files[0]; const r = new FileReader(); r.onload = ()=>{ try{ const data = JSON.parse(r.result); if(data.types){ meta = data; saveMeta(); alert('تم الاستيراد'); } else alert('ملف غير صالح'); }catch(err){ alert('خطأ بالاستيراد'); } }; r.readAsText(f); }; inp.click(); });
-// مستمع لزر استيراد JSON للزائر
-document.getElementById('import-json').addEventListener('click', ()=>{ const inp = document.createElement('input'); inp.type='file'; inp.accept='application/json'; inp.onchange = (e)=>{ const f = e.target.files[0]; const r = new FileReader(); r.onload = ()=>{ try{ const data = JSON.parse(r.result); if(data.types){ meta = data; saveMeta(); alert('تم الاستيراد'); } else alert('ملف غير صالح'); }catch(err){ alert('خطأ بالاستيراد'); } }; r.readAsText(f); }; inp.click(); });
 
 /* export uploaded files */
 document.getElementById('admin-export-files').addEventListener('click', async ()=>{
@@ -436,6 +429,8 @@ ensureDefaults();
 renderTopStrip();
 openType(meta.types[0].id);
 renderPublicIndex();
+// تسجيل ملف الخدمة لتمكين التثبيت (ضروري للنشر)
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
 
 /* click outside to hide menu */
 document.addEventListener('click',(e)=>{ if(!e.target.closest('.menu') && !e.target.closest('.dots')) hideMenu(); });
@@ -467,44 +462,33 @@ async function saveEditorContent() {
         const clientName = prompt('يرجى إدخال اسم صاحب القضية:');
         if (!clientName) return;
 
-        let typeOptions = meta.types.map((t, i) => `${i + 1}- ${t.title}`).join('\n');
-        let typeChoice = prompt("اختر رقم الأيقونة المراد الحفظ فيها:\n" + typeOptions, "1");
+        // استخدام متغير meta الأصلي من النظام
+        let typeOptions = meta.types.map((t, i) => `${i + 1}- ${t.title || t.label}`).join('\n');
+        let typeChoice = prompt("اختر رقم القسم المراد الحفظ فيه من الفهرس:\n" + typeOptions, "1");
+        
         let selectedType = meta.types[parseInt(typeChoice) - 1] || meta.types[0];
-
-        if (!selectedType.categories.length) {
-            alert('هذه الأيقونة لا تحتوي على أقسام. يرجى إنشاء قسم أولاً من لوحة الإدارة.');
-            return;
-        }
-
-        let catIndex = 0;
-        if (selectedType.categories.length > 1) {
-            let catOptions = selectedType.categories.map((c, i) => `${i + 1}- ${c.title}`).join('\n');
-            let catChoice = prompt("اختر رقم القسم:\n" + catOptions, "1");
-            catIndex = parseInt(catChoice) - 1 || 0;
-        }
-
-        const blob = new Blob([content], {type: 'text/html'});
         const fileId = 'legal_' + Date.now();
-        const fileObj = new File([blob], clientName.replace(/\s+/g, '_') + '.html', {type: 'text/html'});
 
-        await saveFileToDB(fileId, fileObj, FILE_STORE);
-
-        selectedType.categories[catIndex].examples.push({
-            title: '⚖️ ' + clientName,
-            text: content,
-            files: [{id: fileId, name: fileObj.name, type: fileObj.type, size: blob.size}]
+        // الحفظ الفعلي في قاعدة البيانات (الدالة الأصيلة للمجلد 7)
+        await saveFileToDB(fileId, content);
+        
+        // تحديث الفهرس
+        meta.files.push({ 
+            id: fileId, 
+            title: "⚖️ " + clientName, 
+            typeId: selectedType.id 
         });
-
-        saveMeta();
-        renderPublicIndex();
-        renderAdminIndex();
-
+        
+        saveMeta(); // حفظ الفهرس في المتصفح
+        renderPublicIndex(); // تحديث القائمة اليمنى
+        renderAdminIndex();  // تحديث قائمة الإدارة
+        
         alert(`✅ تم الحفظ بنجاح: ${clientName}`);
         document.getElementById('editor-modal').style.display = 'none';
-        document.getElementById('legal-editor').innerHTML = '';
+        document.getElementById('legal-editor').innerHTML = ''; 
     } catch (error) {
         console.error("فشل الحفظ:", error);
-        alert("تنبيه: تعذر الحفظ. تأكد من أن المتصفح يدعم IndexedDB.");
+        alert("تنبيه: تعذر الوصول لقاعدة البيانات، حاول تحديث الصفحة.");
     }
 }
 
@@ -519,6 +503,7 @@ function renderAdvancedTrash() {
     const bulkBar = document.getElementById('trash-bulk-actions');
     listRoot.innerHTML = '';
     
+    // استخدام مصفوفة trash العالمية المعرفة في بداية ملفك
     if (!window.trash || window.trash.length === 0) {
         listRoot.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">السلة فارغة حالياً</div>';
         bulkBar.style.display = 'none';
@@ -552,14 +537,8 @@ async function bulkTrashAction(action) {
     for (let idx of indices) {
         const item = window.trash[idx];
         if (action === 'restore') {
-            const targetType = meta.types.find(t => t.id === item.typeId);
-            if (targetType && targetType.categories.length > 0) {
-                targetType.categories[0].examples.push({
-                    title: item.title,
-                    text: item.textContent || '',
-                    files: item.fileData ? [{id: item.id, name: item.fileName || 'file', type: item.fileType || '', size: item.fileSize || 0}] : []
-                });
-            }
+            await saveFileToDB(item.id, item.content);
+            meta.files.push({ id: item.id, title: item.title, typeId: item.typeId });
         }
         window.trash.splice(idx, 1);
     }
