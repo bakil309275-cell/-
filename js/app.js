@@ -7,9 +7,6 @@
 const META_KEY = 'maktabat_alaysaei_meta_vfinal';
 const ADMIN_KEY = 'maktabat_alaysaei_admin_vfinal';
 const DB_NAME = 'maktabat_alaysaei_db_vfinal';
-const TRASH_KEY = 'maktabat_alaysaei_trash_vfinal'; // أضيف
-window.trash = JSON.parse(localStorage.getItem(TRASH_KEY) || '[]'); // أضيف
-function saveTrash() { localStorage.setItem(TRASH_KEY, JSON.stringify(window.trash)); } // أضيف
 const DB_VER = 1;
 const FILE_STORE = 'files';
 const UPLOAD_STORE = 'uploads';
@@ -204,7 +201,7 @@ function openCategoryMenu(e,t,cat){
   const rect = e.target.getBoundingClientRect();
   const items = [
     { label:'إعادة تسمية القسم', action:()=>{ const v = prompt('الاسم الجديد:', cat.title); if(v){ cat.title=v; saveMeta(); renderPublicIndex(); } } },
-    { label:'إضافة نموذج جديد', action:()=>{ const title = prompt('عنوان النموذج:'); if(!title) return; const text = prompt('نص النموذج:')||''; cat.examples.push({title,text,files:[]}); saveMeta(); renderPublicIndex(); } } },
+    { label:'إضافة نموذج جديد', action:()=>{ const title = prompt('عنوان النموذج:'); if(!title) return; const text = prompt('نص النموذج:')||''; cat.examples.push({title,text,files:[]}); saveMeta(); renderPublicIndex(); } },
     { label:'حذف القسم', action:()=>{ if(confirm('حذف القسم وكافة النماذج؟')){ const idx = t.categories.indexOf(cat); if(idx>=0){ t.categories.splice(idx,1); saveMeta(); renderPublicIndex(); } } } }
   ];
   showMenuAt(rect.right-10, rect.bottom+6, items);
@@ -458,51 +455,40 @@ document.getElementById('btn-open-editor').onclick = () => {
     }
 };
 
-// 2. دالة الحفظ (تم إصلاح الربط مع IndexedDB) - تم استبدالها بالكامل
+// 2. دالة الحفظ (تم إصلاح الربط مع IndexedDB)
 async function saveEditorContent() {
     try {
         const content = document.getElementById('legal-editor').innerHTML;
         const clientName = prompt('يرجى إدخال اسم صاحب القضية:');
         if (!clientName) return;
 
-        let typeOptions = meta.types.map((t, i) => `${i + 1}- ${t.title}`).join('\n');
-        let typeChoice = prompt("اختر رقم الأيقونة المراد الحفظ فيها:\n" + typeOptions, "1");
+        // استخدام متغير meta الأصلي من النظام
+        let typeOptions = meta.types.map((t, i) => `${i + 1}- ${t.title || t.label}`).join('\n');
+        let typeChoice = prompt("اختر رقم القسم المراد الحفظ فيه من الفهرس:\n" + typeOptions, "1");
+        
         let selectedType = meta.types[parseInt(typeChoice) - 1] || meta.types[0];
-
-        if (!selectedType.categories.length) {
-            alert('هذه الأيقونة لا تحتوي على أقسام. يرجى إنشاء قسم أولاً من لوحة الإدارة.');
-            return;
-        }
-
-        let catIndex = 0;
-        if (selectedType.categories.length > 1) {
-            let catOptions = selectedType.categories.map((c, i) => `${i + 1}- ${c.title}`).join('\n');
-            let catChoice = prompt("اختر رقم القسم:\n" + catOptions, "1");
-            catIndex = parseInt(catChoice) - 1 || 0;
-        }
-
-        const blob = new Blob([content], {type: 'text/html'});
         const fileId = 'legal_' + Date.now();
-        const fileObj = new File([blob], clientName.replace(/\s+/g, '_') + '.html', {type: 'text/html'});
 
-        await saveFileToDB(fileId, fileObj, FILE_STORE);
-
-        selectedType.categories[catIndex].examples.push({
-            title: '⚖️ ' + clientName,
-            text: content,
-            files: [{id: fileId, name: fileObj.name, type: fileObj.type, size: blob.size}]
+        // الحفظ الفعلي في قاعدة البيانات (الدالة الأصيلة للمجلد 7)
+        await saveFileToDB(fileId, content);
+        
+        // تحديث الفهرس
+        meta.files.push({ 
+            id: fileId, 
+            title: "⚖️ " + clientName, 
+            typeId: selectedType.id 
         });
-
-        saveMeta();
-        renderPublicIndex();
-        renderAdminIndex();
-
+        
+        saveMeta(); // حفظ الفهرس في المتصفح
+        renderPublicIndex(); // تحديث القائمة اليمنى
+        renderAdminIndex();  // تحديث قائمة الإدارة
+        
         alert(`✅ تم الحفظ بنجاح: ${clientName}`);
         document.getElementById('editor-modal').style.display = 'none';
-        document.getElementById('legal-editor').innerHTML = '';
+        document.getElementById('legal-editor').innerHTML = ''; 
     } catch (error) {
         console.error("فشل الحفظ:", error);
-        alert("تنبيه: تعذر الحفظ. تأكد من أن المتصفح يدعم IndexedDB.");
+        alert("تنبيه: تعذر الوصول لقاعدة البيانات، حاول تحديث الصفحة.");
     }
 }
 
@@ -517,6 +503,7 @@ function renderAdvancedTrash() {
     const bulkBar = document.getElementById('trash-bulk-actions');
     listRoot.innerHTML = '';
     
+    // استخدام مصفوفة trash العالمية المعرفة في بداية ملفك
     if (!window.trash || window.trash.length === 0) {
         listRoot.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">السلة فارغة حالياً</div>';
         bulkBar.style.display = 'none';
@@ -538,7 +525,7 @@ function renderAdvancedTrash() {
     });
 }
 
-// تنفيذ الاستعادة أو الحذف النهائي الجماعي - تم استبدالها بالكامل
+// تنفيذ الاستعادة أو الحذف النهائي الجماعي
 async function bulkTrashAction(action) {
     const selected = document.querySelectorAll('.trash-sel-v7:checked');
     if (selected.length === 0) return alert('يرجى تحديد ملفات من القائمة');
@@ -550,14 +537,8 @@ async function bulkTrashAction(action) {
     for (let idx of indices) {
         const item = window.trash[idx];
         if (action === 'restore') {
-            const targetType = meta.types.find(t => t.id === item.typeId);
-            if (targetType && targetType.categories.length > 0) {
-                targetType.categories[0].examples.push({
-                    title: item.title,
-                    text: item.textContent || '',
-                    files: item.fileData ? [{id: item.id, name: item.fileName || 'file', type: item.fileType || '', size: item.fileSize || 0}] : []
-                });
-            }
+            await saveFileToDB(item.id, item.content);
+            meta.files.push({ id: item.id, title: item.title, typeId: item.typeId });
         }
         window.trash.splice(idx, 1);
     }
