@@ -13,7 +13,7 @@ button,input,select,textarea{font:inherit}
 .row.wrap{flex-wrap:wrap}
 .icon-btn{background:transparent;border:1px solid var(--line);color:var(--muted);padding:8px 10px;border-radius:8px;cursor:pointer}
 .icon-btn:hover{border-color:var(--accent);color:var(--accent)}
-.install-btn{display:none}
+.install-btn{border-color:var(--accent);color:var(--accent)}.btn.dim{opacity:.6}
 .admin-bar{display:none;gap:8px;flex-wrap:wrap;margin-top:10px;padding:8px;background:#1b1812;border:1px dashed var(--accent);border-radius:10px}
 body.admin .admin-bar{display:flex}
 body:not(.admin) .admin-only{display:none}
