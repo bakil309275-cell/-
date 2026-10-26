@@ -518,14 +518,18 @@ async function githubSettings() {
 /* ======================= مراسلة الإدارة (قنوات حقيقية) ======================= */
 function renderContact() {
   const c = L.contact();
-  const has = !!(c.whatsapp || c.email);
-  $('send-wa').disabled = !c.whatsapp; $('send-mail').disabled = !c.email;
-  $('contact-hint').textContent = has ? 'تُرسل الرسالة عبر واتساب أو البريد إلى الإدارة. يُحفظ سجل بما أرسلته على جهازك فقط.' : 'لم تُضبط وسيلة تواصل بعد. (للمسؤول: الإعدادات ← التواصل ثم انشر المكتبة).';
+  $('send-wa').classList.toggle('dim', !c.whatsapp); $('send-mail').classList.toggle('dim', !c.email);
+  $('contact-hint').textContent = c.whatsapp || c.email ? 'تُرسل الرسالة عبر واتساب أو البريد إلى الإدارة. يُحفظ سجل بما أرسلته على جهازك فقط.' : 'لم تُضبط وسيلة تواصل بعد.';
 }
 async function sendVisitor(channel) {
   const name = $('visitor-name').value.trim(), msg = $('visitor-message').value.trim(), files = Array.from($('visitor-files').files);
   if (msg.length < 2 && !files.length) return toast('اكتب رسالة أو أرفق ملفاً', 'err');
   const c = L.contact();
+  if (!(channel === 'wa' ? c.whatsapp : c.email)) {
+    const label = channel === 'wa' ? 'واتساب' : 'البريد';
+    if (ui.admin) { if (await confirmBox(`لم تضبط ${label} بعد. هل تفتح إعدادات التواصل الآن؟`, 'فتح الإعدادات')) contactSettings(); return; }
+    return infoBox('غير متاح حالياً', `وسيلة التواصل عبر ${label} غير مفعّلة من الإدارة بعد. جرّب الوسيلة الأخرى أو أعد المحاولة لاحقاً.`);
+  }
   const text = (name ? `الاسم: ${name}\n` : '') + msg;
   let sent = false;
   if (files.length && navigator.canShare?.({ files })) {
@@ -578,7 +582,7 @@ $('send-wa').addEventListener('click', () => sendVisitor('wa'));
 $('send-mail').addEventListener('click', () => sendVisitor('mail'));
 $('btn-view-uploads').addEventListener('click', openLog);
 
-const VERSION = '2.1.0';
+const VERSION = '2.1.1';
 const FS_KEY = 'alaisai_vf';
 function setFont(px) {
   px = Math.max(13, Math.min(28, px));
@@ -594,10 +598,17 @@ $('btn-font-down').addEventListener('click', () => { fontPx = setFont(fontPx - 2
 
 let deferred = null;
 const installBtn = $('btn-install');
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; installBtn.style.display = 'inline-block'; });
-window.addEventListener('appinstalled', () => { installBtn.style.display = 'none'; toast('تم تثبيت التطبيق'); });
-installBtn.addEventListener('click', async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; installBtn.style.display = 'none'; });
-if (/iphone|ipad/i.test(navigator.userAgent) && !navigator.standalone) { installBtn.style.display = 'inline-block'; installBtn.addEventListener('click', () => infoBox('التثبيت على آيفون', 'اضغط زر المشاركة في سفاري ثم «إضافة إلى الشاشة الرئيسية».')); }
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if (isStandalone()) installBtn.classList.add('hidden');
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; });
+window.addEventListener('appinstalled', () => { installBtn.classList.add('hidden'); toast('تم تثبيت التطبيق'); });
+installBtn.addEventListener('click', async () => {
+  if (deferred) { deferred.prompt(); const r = await deferred.userChoice; deferred = null; if (r.outcome === 'accepted') installBtn.classList.add('hidden'); return; }
+  const ios = /iphone|ipad/i.test(navigator.userAgent);
+  infoBox('تثبيت التطبيق', ios
+    ? 'في سفاري: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».'
+    : 'في كروم: افتح قائمة المتصفح (⋮) ثم اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية». إن لم يظهر الخيار فقد يكون التطبيق مثبّتاً أصلاً على هذا الجهاز.');
+});
 
 const netBadge = () => ($('net').textContent = navigator.onLine ? '' : '⚠️ غير متصل — تعمل المكتبة من النسخة المحفوظة');
 addEventListener('online', netBadge); addEventListener('offline', netBadge);
