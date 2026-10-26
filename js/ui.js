@@ -102,7 +102,7 @@ export function form(title, fields, okLabel = 'حفظ', opts = {}) {
     { label: 'إلغاء', value: null },
     {
       label: okLabel, primary: true,
-      onClick: () => {
+      onClick: async () => {
         const v = read();
         for (const f of fields) {
           if (f.required && (f.type === 'file' ? !v[f.name].length : !String(v[f.name]).trim())) {
@@ -111,7 +111,7 @@ export function form(title, fields, okLabel = 'حفظ', opts = {}) {
             return false;
           }
         }
-        if (opts.validate) { const m = opts.validate(v); if (m) { toast(m, 'err'); return false; } }
+        if (opts.validate) { const m = await opts.validate(v); if (m) { toast(m, 'err'); return false; } }
         result = v;
         return true;
       },

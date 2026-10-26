@@ -307,12 +307,13 @@ async function openEditor(item = null, catId = null) {
   let draft = await DB.kv.get('draft');
   let useDraft = false;
   if (!item && draft?.html && draft.html.replace(/<[^>]+>/g, '').trim().length > 20) useDraft = await confirmBox('وُجدت مسودة غير محفوظة من جلسة سابقة. هل تريد استعادتها؟', 'استعادة');
+  let dirty = false, saved = false;
   const area = h('div', { id: 'legal-editor', contenteditable: 'true', dir: 'rtl', spellcheck: 'false', 'aria-label': 'محرر المستند' });
   area.innerHTML = sanitizeHTML(item ? item.html : useDraft ? draft.html : TEMPLATES.blank);
   const title = h('input', { type: 'text', placeholder: 'عنوان المستند / اسم صاحب القضية', value: item?.title || (useDraft ? draft.title : '') });
   const sel = h('select', {}, opts.map((o) => h('option', { value: o.value, text: o.label, selected: o.selected })));
   const pub = h('input', { type: 'checkbox', checked: item ? item.pub : false });
-  const tpl = h('select', { onchange: () => { if (tpl.value && confirm('استبدال محتوى المحرر بالقالب؟')) area.innerHTML = TEMPLATES[tpl.value]; tpl.value = ''; } },
+  const tpl = h('select', { onchange: async () => { const v = tpl.value; tpl.value = ''; if (v && (await confirmBox('استبدال محتوى المحرر بالقالب؟', 'استبدال'))) { area.innerHTML = TEMPLATES[v]; dirty = true; } } },
     h('option', { value: '', text: 'إدراج قالب…' }), h('option', { value: 'petition', text: 'عريضة دعوى' }), h('option', { value: 'memo', text: 'مذكرة جوابية' }), h('option', { value: 'blank', text: 'بسملة فقط' }));
   const cmd = (c, v) => { area.focus(); document.execCommand(c, false, v ?? null); };
   const tb = (label, c, v, t) => h('button', { type: 'button', class: 'tb', title: t || label, text: label, onmousedown: (e) => e.preventDefault(), onclick: () => cmd(c, v) });
@@ -323,7 +324,6 @@ async function openEditor(item = null, catId = null) {
     tb('↶', 'undo', null, 'تراجع'), tb('↷', 'redo', null, 'إعادة'), tb('✖ تنسيق', 'removeFormat'), size, tpl);
   const body = h('div', { class: 'editor-wrap' }, h('div', { class: 'editor-meta' }, title, sel, h('label', { class: 'chk' }, pub, ' نشر للعامة')), toolbar, area);
 
-  let dirty = false, saved = false;
   area.addEventListener('input', () => { dirty = true; });
   title.addEventListener('input', () => { dirty = true; });
   const timer = setInterval(() => { if (dirty && !saved && !item) DB.kv.set('draft', { title: title.value, html: area.innerHTML, at: Date.now() }); }, 3000);
@@ -483,9 +483,8 @@ async function changePassword() {
     { name: 'old', label: 'كلمة المرور الحالية', type: 'password', required: true },
     { name: 'p1', label: 'الجديدة (6 أحرف فأكثر)', type: 'password', required: true },
     { name: 'p2', label: 'تأكيد الجديدة', type: 'password', required: true }],
-  'تغيير', { validate: (v) => (v.p1.length < 6 ? 'قصيرة (6 أحرف على الأقل)' : v.p1 !== v.p2 ? 'غير متطابقتين' : null) });
+  'تغيير', { validate: async (v) => (v.p1.length < 6 ? 'قصيرة (6 أحرف على الأقل)' : v.p1 !== v.p2 ? 'غير متطابقتين' : !(await verifyPassword(v.old, S.admin)) ? 'كلمة المرور الحالية غير صحيحة' : null) });
   if (!r) return;
-  if (!(await verifyPassword(r.old, S.admin))) return toast('كلمة المرور الحالية غير صحيحة', 'err');
   await L.saveAdmin(await hashPassword(r.p1));
   if (session.token) { S.settings.gh.tokenEnc = await encrypt(session.token, r.p1); await L.saveSettings(); } // أعد تشفير الرمز بالكلمة الجديدة
   session.pw = r.p1; toast('تم تغيير كلمة المرور');
@@ -579,6 +578,20 @@ $('send-wa').addEventListener('click', () => sendVisitor('wa'));
 $('send-mail').addEventListener('click', () => sendVisitor('mail'));
 $('btn-view-uploads').addEventListener('click', openLog);
 
+const VERSION = '2.1.0';
+const FS_KEY = 'alaisai_vf';
+function setFont(px) {
+  px = Math.max(13, Math.min(28, px));
+  document.documentElement.style.setProperty('--vf', px + 'px');
+  try { localStorage.setItem(FS_KEY, String(px)); } catch { /* التخزين غير متاح */ }
+  return px;
+}
+let fontPx = 16;
+try { fontPx = Number(localStorage.getItem(FS_KEY)) || 16; } catch { /* تجاهل */ }
+setFont(fontPx);
+$('btn-font-up').addEventListener('click', () => { fontPx = setFont(fontPx + 2); });
+$('btn-font-down').addEventListener('click', () => { fontPx = setFont(fontPx - 2); });
+
 let deferred = null;
 const installBtn = $('btn-install');
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; installBtn.style.display = 'inline-block'; });
@@ -589,18 +602,29 @@ if (/iphone|ipad/i.test(navigator.userAgent) && !navigator.standalone) { install
 const netBadge = () => ($('net').textContent = navigator.onLine ? '' : '⚠️ غير متصل — تعمل المكتبة من النسخة المحفوظة');
 addEventListener('online', netBadge); addEventListener('offline', netBadge);
 
-function fromHash() { const m = location.hash.match(/^#i=(.+)$/); if (m) { const id = decodeURIComponent(m[1]); if (L.getItem(id)) openItem(id); } }
+function fromHash() { if (location.hash === '#search') { $('search').focus(); return; } const m = location.hash.match(/^#i=(.+)$/); if (m) { const id = decodeURIComponent(m[1]); if (L.getItem(id)) openItem(id); } }
 addEventListener('hashchange', fromHash);
 
+function sessionStorageFlag() { try { return sessionStorage.getItem('alaisai_upd') === '1'; } catch { return false; } }
+
 (async function boot() {
-  $('year').textContent = new Date().getFullYear();
+  $('year').textContent = new Date().getFullYear(); $('ver').textContent = VERSION;
   try { await L.init(); } catch (e) { document.body.prepend(h('div', { class: 'fatal', text: 'تعذّر فتح قاعدة بيانات المتصفح: ' + e.message + ' (قد يكون الوضع الخاص مفعّلاً).' })); return; }
   ui.typeId = S.tree.types[0]?.id; renderAll(); fromHash(); netBadge();
   if (await L.loadRemote()) { renderAll(); fromHash(); }
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   if ('serviceWorker' in navigator) {
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading && sessionStorageFlag()) { reloading = true; location.reload(); } });
     navigator.serviceWorker.register('./service-worker.js').then((reg) => {
-      reg.addEventListener('updatefound', () => { const w = reg.installing; w?.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) toast('يتوفر تحديث — أعد فتح التطبيق للحصول عليه'); }); });
+      const offer = async (w) => {
+        if (!(await confirmBox('يتوفر إصدار أحدث من التطبيق. هل تريد التحديث الآن؟ (لن تتأثر بياناتك)', 'تحديث الآن'))) return;
+        try { sessionStorage.setItem('alaisai_upd', '1'); } catch { /* تجاهل */ }
+        w.postMessage('SKIP_WAITING');
+      };
+      if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
+      reg.addEventListener('updatefound', () => { const w = reg.installing; w?.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w); }); });
+      setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
     }).catch(() => {});
   }
 })();
