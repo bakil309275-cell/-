@@ -1,5 +1,5 @@
 /* ملف الخدمة: تخزين الأصل للعمل دون اتصال + تحديث تلقائي بالإصدار */
-const VERSION = 'v2.0.0';
+const VERSION = 'v2.1.0';
 const CACHE = 'maktabat-alaisai-' + VERSION;
 const CORE = [
   './', './index.html', './privacy.html', './manifest.json', './css/style.css',
