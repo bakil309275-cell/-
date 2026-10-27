@@ -1,9 +1,9 @@
 /* ملف الخدمة: تخزين الأصل للعمل دون اتصال + تحديث تلقائي بالإصدار */
-const VERSION = 'v2.1.1';
+const VERSION = 'v2.1.2';
 const CACHE = 'maktabat-alaisai-' + VERSION;
 const CORE = [
   './', './index.html', './privacy.html', './manifest.json', './css/style.css',
-  './js/app.js', './js/lib.js', './js/db.js', './js/crypto.js', './js/ui.js', './js/sanitize.js', './js/github.js',
+  './js/app.js', './js/lib.js', './js/db.js', './js/crypto.js', './js/ui.js', './js/sanitize.js', './js/github.js', './js/sw-register.js',
   './icons/icon-192x192.png', './icons/icon-512x512.png',
 ];
 
