@@ -582,7 +582,7 @@ $('send-wa').addEventListener('click', () => sendVisitor('wa'));
 $('send-mail').addEventListener('click', () => sendVisitor('mail'));
 $('btn-view-uploads').addEventListener('click', openLog);
 
-const VERSION = '2.1.1';
+const VERSION = '2.1.2';
 const FS_KEY = 'alaisai_vf';
 function setFont(px) {
   px = Math.max(13, Math.min(28, px));
@@ -627,7 +627,7 @@ function sessionStorageFlag() { try { return sessionStorage.getItem('alaisai_upd
   if ('serviceWorker' in navigator) {
     let reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading && sessionStorageFlag()) { reloading = true; location.reload(); } });
-    navigator.serviceWorker.register('./service-worker.js').then((reg) => {
+    navigator.serviceWorker.ready.then((reg) => {
       const offer = async (w) => {
         if (!(await confirmBox('يتوفر إصدار أحدث من التطبيق. هل تريد التحديث الآن؟ (لن تتأثر بياناتك)', 'تحديث الآن'))) return;
         try { sessionStorage.setItem('alaisai_upd', '1'); } catch { /* تجاهل */ }
